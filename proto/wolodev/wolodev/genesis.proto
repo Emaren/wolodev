@@ -1,0 +1,12 @@
+syntax = "proto3";
+package wolodev.wolodev;
+
+import "gogoproto/gogo.proto";
+import "wolodev/wolodev/params.proto";
+
+option go_package = "wolodev/x/wolodev/types";
+
+// GenesisState defines the wolodev module's genesis state.
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+}
