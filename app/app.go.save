@@ -1,6 +1,7 @@
-package app
+ckage app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,8 @@ import (
 
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/gorilla/mux"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	autocliv1 "cosmossdk.io/api/cosmos/autocli/v1"
 	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
 	dbm "github.com/cometbft/cometbft-db"
@@ -194,6 +197,34 @@ var (
 	_ runtime.AppI            = (*App)(nil)
 	_ servertypes.Application = (*App)(nil)
 )
+
+// ---  CUSTOM: minimal Query server that ONLY answers SupplyOf ----------
+type supplyQueryServer struct {
+    banktypes.UnimplementedQueryServer
+    bk bankkeeper.Keeper
+}
+
+func newSupplyQueryServer(bk bankkeeper.Keeper) *supplyQueryServer {
+    return &supplyQueryServer{bk: bk}
+}
+
+func (s *supplyQueryServer) SupplyOf(
+    ctx context.Context,
+    req *banktypes.QuerySupplyOfRequest,
+) (*banktypes.QuerySupplyOfResponse, error) {
+
+    if req == nil || req.Denom == "" {
+        return nil, status.Error(codes.InvalidArgument, "denom required")
+    }
+
+    sdkCtx := sdk.UnwrapSDKContext(ctx)
+    amt    := s.bk.GetSupply(sdkCtx, req.Denom) // ← 2-arg form
+
+    return &banktypes.QuerySupplyOfResponse{
+        Amount: amt,
+    }, nil
+}
+
 
 func init() {
 	userHomeDir, err := os.UserHomeDir()
@@ -839,66 +870,39 @@ func (app *App) GetSubspace(moduleName string) paramstypes.Subspace {
 func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
     clientCtx := apiSvr.ClientCtx
 
-    // ---------- default Cosmos-SDK gRPC-Gateway routes ----------
+    // ---------- gRPC-Gateway routes Cosmos SDK already provides ----------
     authtx.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
     tmservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
     nodeservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
-
-    // Inject custom /supply override to include denom + exponent
-apiSvr.Router.HandleFunc(
-    "/cosmos/bank/v1beta1/supply",
-    func(w http.ResponseWriter, r *http.Request) {
-        sdkCtx := sdk.NewContext(app.CommitMultiStore(), tmproto.Header{}, false, log.NewNopLogger())
-        coin := app.BankKeeper.GetSupply(sdkCtx, "uwolo")
-
-        // Include exponent field in response to satisfy Ping.pub
-        type supplyWithExponent struct {
-            Denom    string `json:"denom"`
-            Amount   string `json:"amount"`
-            Exponent int    `json:"exponent"`
-        }
-        _ = json.NewEncoder(w).Encode(map[string]interface{}{
-            "supply": []supplyWithExponent{
-                {
-                    Denom:    coin.Denom,
-                    Amount:   coin.Amount.String(),
-                    Exponent: 6,
-                },
-            },
-        })
-    },
-).Methods("GET")
-
-
     ModuleBasics.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 
-    // ---------- custom GET /supply/{denom} (HTTP only) ----------
-    apiSvr.Router.HandleFunc(
-        "/cosmos/bank/v1beta1/supply/{denom}",
-        func(w http.ResponseWriter, r *http.Request) {
-            denom := mux.Vars(r)["denom"]
-            if denom == "" {
-                http.Error(w,
-                    `{"code":3,"message":"denom required"}`,
-                    http.StatusBadRequest,
-                )
-                return
-            }
-
-            // read-only access to BankKeeper
-            sdkCtx := sdk.NewContext(
-                app.CommitMultiStore(),
-                tmproto.Header{}, // empty header is fine for queries
-                false,
-                log.NewNopLogger(),
+// ---------- custom SupplyOf (HTTP only) -----------------------------
+apiSvr.Router.HandleFunc(
+    "/cosmos/bank/v1beta1/supply/{denom}",
+    func(w http.ResponseWriter, r *http.Request) {
+        denom := mux.Vars(r)["denom"]
+        if denom == "" {
+            http.Error(w,
+                `{"code":3,"message":"denom required"}`,
+                http.StatusBadRequest,
             )
-            coin := app.BankKeeper.GetSupply(sdkCtx, denom)
+            return
+        }
 
-            _ = json.NewEncoder(w).Encode(
-                &banktypes.QuerySupplyOfResponse{Amount: coin},
-            )
-        },
-    ).Methods("GET")
+        // read-only bank query
+        sdkCtx := sdk.NewContext(
+            app.CommitMultiStore(),
+            tmproto.Header{},          // empty header OK for query
+            false,
+            log.NewNopLogger(),
+        )
+        coin := app.BankKeeper.GetSupply(sdkCtx, denom)
+
+        _ = json.NewEncoder(w).Encode(
+            &banktypes.QuerySupplyOfResponse{Amount: coin},
+        )
+    },
+).Methods("GET")
 
     // ---------- OpenAPI ----------
     docs.RegisterOpenAPIService(Name, apiSvr.Router)

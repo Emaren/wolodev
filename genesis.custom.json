@@ -52,12 +52,12 @@
             "exponent": 0
           },
           {
-            "denom": "WOLO",
+            "denom": "wolo",
             "exponent": 6
           }
         ],
         "base": "uwolo",
-        "display": "WOLO",
+        "display": "wolo",
         "name": "Wolo",
         "symbol": "WOLO"
       }
