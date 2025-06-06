@@ -119,9 +119,16 @@ import (
 	"wolodev/docs"
 )
 
+app.SetAppName("wolochaind")
+
 const (
-	AccountAddressPrefix = "cosmos"
-	Name                 = "freshgo"
+  appName    = "wolochaind"
+  appVersion = "0.1.0"
+)
+
+const (
+	AccountAddressPrefix = "wolo"
+	Name                 = "wolo"
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals

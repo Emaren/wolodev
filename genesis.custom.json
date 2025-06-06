@@ -1,6 +1,6 @@
 {
-  "genesis_time": "2025-06-02T04:19:27.766367213Z",
-  "chain_id": "wolodev",
+  "genesis_time": "2025-06-05T16:46:37.127091756Z",
+  "chain_id": "wolo",
   "initial_height": "1",
   "consensus_params": {
     "block": {
@@ -43,25 +43,28 @@
         "send_enabled": [],
         "default_send_enabled": true
       },
-    "denom_metadata": [
-      {
-        "description": "The base staking and transaction token of the WoloDevChain",
-        "denom_units": [
-          {
-            "denom": "uwolo",
-            "exponent": 0
-          },
-          {
-            "denom": "wolo",
-            "exponent": 6
-          }
-        ],
-        "base": "uwolo",
-        "display": "wolo",
-        "name": "Wolo",
-        "symbol": "WOLO"
-      }
-     ]
+      "balances": [],
+      "supply": [],
+      "denom_metadata": [
+        {
+          "denom_units": [
+            {
+              "denom": "uwolo",
+              "exponent": 0
+            },
+            {
+              "denom": "wolo",
+              "exponent": 6
+            }
+          ],
+          "base": "uwolo",
+          "name": "Wolo",
+          "display": "wolo",
+          "symbol": "wolo",
+          "description": "The native token of the Wolochain network."
+        }
+      ],
+      "send_enabled": []
     },
     "capability": {
       "index": "1",
@@ -99,7 +102,7 @@
     "feegrant": {
       "allowances": []
     },
-      "genutil": {
+    "genutil": {
       "gen_txs": []
     },
     "gov": {
@@ -246,9 +249,6 @@
       "total_escrowed": []
     },
     "upgrade": {},
-    "vesting": {},
-    "wolodev": {
-      "params": {}
-    }
+    "vesting": {}
   }
 }
